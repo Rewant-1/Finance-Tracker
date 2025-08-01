@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import { Plus, TrendingUp, DollarSign, PieChart, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,60 +13,73 @@ import TransactionList from '@/components/TransactionList';
 import SharedExpenses from '@/components/SharedExpenses';
 import { Expense } from '@/types/expense';
 
+
 export default function Home() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
 
-  // Load expenses from localStorage on component mount
+  // Load expenses from Supabase on component mount
   useEffect(() => {
-    const savedExpenses = localStorage.getItem('coupleExpenses');
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
-    }
+    const fetchExpenses = async () => {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('date', { ascending: false });
+      if (!error && data) {
+        setExpenses(data);
+      }
+    };
+    fetchExpenses();
   }, []);
 
-  // Save expenses to localStorage whenever expenses change
-  useEffect(() => {
-    localStorage.setItem('coupleExpenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  const addExpense = (expense: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...expense,
-      id: Date.now().toString(),
-    };
-    setExpenses(prev => [newExpense, ...prev]);
+  const addExpense = async (expense: Omit<Expense, 'id'>) => {
+    const { data, error } = await supabase
+      .from('expenses')
+      .insert([{ ...expense }])
+      .select();
+    if (!error && data && data[0]) {
+      setExpenses(prev => [data[0], ...prev]);
+    }
   };
 
-  const deleteExpense = (id: string) => {
-    setExpenses(prev => prev.filter(expense => expense.id !== id));
+  const deleteExpense = async (id: string) => {
+    const { error } = await supabase
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+    if (!error) {
+      setExpenses(prev => prev.filter(expense => expense.id !== id));
+    }
   };
 
   const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
   const partner1Total = expenses
     .filter(e => e.paidBy === 'partner1')
     .reduce((sum, expense) => sum + expense.amount, 0);
-    
   const partner2Total = expenses
     .filter(e => e.paidBy === 'partner2')
     .reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
-    <div className="min-h-screen bg-background dark:bg-background transition-colors duration-500">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 flex items-center justify-center">
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-700 rounded-full blur-3xl opacity-40 animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-700 rounded-full blur-3xl opacity-40 animate-pulse animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full blur-2xl opacity-30 animate-blob"></div>
+      </div>
+      <div className="container mx-auto px-4 py-6 max-w-6xl relative z-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2 text-slate-900 dark:text-white">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2 text-white">
               💕 Our Money Journey
             </h1>
-            <p className="text-slate-600 dark:text-slate-300">Building our future together, one expense at a time ✨</p>
+            <p className="text-purple-200">Building our future together, one expense at a time ✨</p>
           </div>
           <Button 
             onClick={() => setShowExpenseForm(true)}
             size="lg"
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 w-full sm:w-auto shadow-lg text-white dark:from-purple-700 dark:to-pink-700 dark:hover:from-purple-800 dark:hover:to-pink-800"
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 w-full sm:w-auto shadow-lg text-white"
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Expense 💸
@@ -74,44 +88,42 @@ export default function Home() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg dark:from-purple-900 dark:to-pink-900 dark:text-white">
+          <Card className="bg-gradient-to-r from-purple-700 to-pink-700 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm dark:text-purple-200">💰 Total Spent</p>
-                  <p className="text-2xl font-bold text-white dark:text-white">${totalSpent.toFixed(2)}</p>
+                  <p className="text-purple-200 text-sm">💰 Total Spent</p>
+                  <p className="text-2xl font-bold text-white">${totalSpent.toFixed(2)}</p>
                 </div>
-                <DollarSign className="w-8 h-8 text-purple-200 dark:text-purple-300" />
+                <DollarSign className="w-8 h-8 text-purple-300" />
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg dark:from-blue-900 dark:to-cyan-900 dark:text-white">
+          <Card className="bg-gradient-to-r from-blue-700 to-cyan-700 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm dark:text-blue-200">👤 Partner 1</p>
-                  <p className="text-2xl font-bold text-white dark:text-white">${partner1Total.toFixed(2)}</p>
-                  <p className="text-blue-200 text-xs dark:text-blue-300">
+                  <p className="text-blue-200 text-sm">👤 Partner 1</p>
+                  <p className="text-2xl font-bold text-white">${partner1Total.toFixed(2)}</p>
+                  <p className="text-blue-300 text-xs">
                     {totalSpent > 0 ? ((partner1Total / totalSpent) * 100).toFixed(1) : 0}% of total
                   </p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-blue-200 dark:text-blue-300" />
+                <TrendingUp className="w-8 h-8 text-blue-300" />
               </div>
             </CardContent>
           </Card>
-          
-          <Card className="bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg dark:from-pink-900 dark:to-rose-900 dark:text-white">
+          <Card className="bg-gradient-to-r from-pink-700 to-rose-700 text-white shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-pink-100 text-sm dark:text-pink-200">👤 Partner 2</p>
-                  <p className="text-2xl font-bold text-white dark:text-white">${partner2Total.toFixed(2)}</p>
-                  <p className="text-pink-200 text-xs dark:text-pink-300">
+                  <p className="text-pink-200 text-sm">👤 Partner 2</p>
+                  <p className="text-2xl font-bold text-white">${partner2Total.toFixed(2)}</p>
+                  <p className="text-pink-300 text-xs">
                     {totalSpent > 0 ? ((partner2Total / totalSpent) * 100).toFixed(1) : 0}% of total
                   </p>
                 </div>
-                <BarChart3 className="w-8 h-8 text-pink-200 dark:text-pink-300" />
+                <BarChart3 className="w-8 h-8 text-pink-300" />
               </div>
             </CardContent>
           </Card>

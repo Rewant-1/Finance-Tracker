@@ -3,9 +3,13 @@ export interface Expense {
   amount: number;
   description: string;
   category: string;
-  paidBy: 'partner1' | 'partner2';
-  date: string;
-  isShared?: boolean;
+  user_id: string;
+  group_id: string;
+  split_with?: string[];
+  created_at: string;
+  paidBy?: 'partner1' | 'partner2'; // Keep for backward compatibility
+  date?: string; // Keep for backward compatibility
+  isShared?: boolean; // Keep for backward compatibility
 }
 
 export type ExpenseCategory = 
